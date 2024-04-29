@@ -38,6 +38,9 @@ jobs:
 
       - name: Merge the latest tag
         run: git merge ${{ steps.latest_tag.outputs.tag }} --allow-unrelated-histories -X theirs 
+      
+      - name: Checkout main branch
+        run: git checkout main
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v3
