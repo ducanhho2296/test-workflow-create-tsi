@@ -1,0 +1,56 @@
+name: Merge Changes from Upstream
+
+on:
+  schedule:
+    - cron: '0 0 */2 * *'  # Run every 2 days
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  merge-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the local repo
+        uses: actions/checkout@v4
+
+      - name: Configure git to ignore changes in specific files
+        run: |
+          git config --global user.email "you@example.com"
+          git config --global user.name "Your Name"
+          echo "README.md merge=ours" >> .gitattributes
+          echo "LICENSES/* merge=ours" >> .gitattributes
+          echo "workflows/* merge=ours" >> .gitattributes
+          echo "LICENSE.md merge=ours" >> .gitattributes
+          git add .gitattributes
+          git commit -m "Set our merge strategy for specific files."
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/run-llama/create-llama.git
+
+      - name: Fetch upstream changes
+        run: git fetch upstream main
+
+      - name: Check if main branch has new changes
+        id: check_main_changes
+        run: |
+          git diff --quiet HEAD upstream/main || echo "Main branch has new changes"
+          echo "::set-output name=main_changed::$(git diff --quiet HEAD upstream/main && echo "false" || echo "true")"
+      - name: Merge main branch changes if any
+        if: steps.check_main_changes.outputs.main_changed == 'true'
+        run: git merge --allow-unrelated-histories upstream/main -X theirs 
+
+
+      - name: Generate branch name for main branch changes
+        id: main_branch_name
+        if: steps.check_main_changes.outputs.main_changed == 'true'
+        run: echo "::set-output name=main_branch::PR-main-$(date '+%d.%B')"
+
+      - name: Create pull request for main branch changes
+        if: steps.check_main_changes.outputs.main_changed == 'true'
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.PAT }}
+          commit-message: "Merge upstream changes to main branch"
+          branch: ${{ steps.main_branch_name.outputs.main_branch }}
+          title: "Merge Upstream Changes to Main Branch"
+          body: |
+            This pull request merges the latest changes from the upstream main branch.
+            Please review and merge manually.
