@@ -1,5 +1,4 @@
-name: Merge Latest Tag from Upstream
-
+name: test
 on:
   schedule:
     - cron: '0 0 */2 * *'  # Run every 2 days
@@ -22,6 +21,7 @@ jobs:
           echo "LICENSE.md merge=ours" >> .gitattributes
           git add .gitattributes
           git commit -m "Set our merge strategy for specific files."
+
       - name: Fetch the upstream repo with tags
         run: git fetch --tags https://github.com/run-llama/create-llama.git  # Add the URL of the upstream repo here
 
@@ -29,25 +29,22 @@ jobs:
         id: latest_tag
         run: echo "::set-output name=tag::$(git describe --tags `git rev-list --tags --max-count=1`)"
 
-      - name: Generate branch name
-        id: branch_name
-        run: echo "::set-output name=branch::PR-Tag-${{ steps.latest_tag.outputs.tag }}"
-        
-      - name: Checkout new branch
-        run: git checkout -b ${{ steps.branch_name.outputs.branch }}
 
-      - name: Merge the latest tag
-        run: git merge ${{ steps.latest_tag.outputs.tag }} --allow-unrelated-histories -X theirs 
-      
-      - name: Checkout main branch
-        run: git checkout main
-
+      - name: Merge latest tag 
+        run: |
+          git merge --allow-unrelated-histories -X theirs --no-commit ${{ steps.latest_tag.outputs.tag }}
+          
+          
+      - name: Create new branch
+        id: main_branch_name
+        run: echo "::set-output name=main_branch::PR-Tag-${{ steps.latest_tag.outputs.tag }}"
+          
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v3
         with:
           token: ${{ secrets.PAT }}
           commit-message: "Merge latest tag from upstream"
-          branch: ${{ steps.branch_name.outputs.branch }}
+          branch: ${{ steps.main_branch_name.outputs.main_branch }}
           title: "Merge Latest Tag - ${{ steps.latest_tag.outputs.tag }} from Upstream"
           body: |
             This pull request merges the latest tag from the upstream repository.
