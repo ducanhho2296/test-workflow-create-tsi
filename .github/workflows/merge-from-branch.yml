@@ -1,4 +1,4 @@
-name: Merge Changes from Upstream
+name: Merge "main" branch from Upstream
 
 on:
   schedule:
