@@ -34,7 +34,7 @@ jobs:
 
       - name: Merge latest tag with new branch
         run: |
-          git merge --allow-unrelated-histories -X theirs --no-commit --no-ff ${{ steps.latest_tag.outputs.tag }}
+          git merge --allow-unrelated-histories -X theirs --no-commit ${{ steps.latest_tag.outputs.tag }}
           git commit -m "Merge latest tag from upstream"
           
       - name: Create Pull Request
