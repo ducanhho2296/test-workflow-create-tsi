@@ -36,7 +36,7 @@ jobs:
         run: git checkout -b PR-Tag-${{ steps.latest_tag.outputs.tag }}
 
       - name: Merge latest tag with new branch
-        run: git merge --no-commit --no-ff origin/main && git merge ${{ steps.latest_tag.outputs.tag }} --no-commit --no-ff && git commit -m "Merge latest tag from upstream"
+        run: git merge --allow-unrelated-histories -X theirs --no-commit --no-ff origin/main && git merge ${{ steps.latest_tag.outputs.tag }} --allow-unrelated-histories -X theirs --no-commit --no-ff && git commit -m "Merge latest tag from upstream"
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v3
