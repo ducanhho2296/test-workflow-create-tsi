@@ -29,16 +29,11 @@ jobs:
         id: latest_tag
         run: echo "::set-output name=tag::$(git describe --tags `git rev-list --tags --max-count=1`)"
 
-      - name: Checkout the latest tag
-        run: git checkout ${{ steps.latest_tag.outputs.tag }}
-
       - name: Create new branch
         run: git checkout -b PR-Tag-${{ steps.latest_tag.outputs.tag }}
 
       - name: Merge latest tag with new branch
         run: |
-          git merge --allow-unrelated-histories -X theirs --no-commit --no-ff origin/main
-          git commit -m "Merge latest tag from upstream"
           git merge --allow-unrelated-histories -X theirs --no-commit --no-ff ${{ steps.latest_tag.outputs.tag }}
           git commit -m "Merge latest tag from upstream"
           
