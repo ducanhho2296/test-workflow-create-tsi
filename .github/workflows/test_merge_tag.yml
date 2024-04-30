@@ -29,20 +29,25 @@ jobs:
         id: latest_tag
         run: echo "::set-output name=tag::$(git describe --tags `git rev-list --tags --max-count=1`)"
 
-      - name: Create new branch
-        run: git checkout -b PR-Tag-${{ steps.latest_tag.outputs.tag }}
 
-      - name: Merge latest tag with new branch
+      - name: Merge latest tag 
         run: |
           git merge --allow-unrelated-histories -X theirs --no-commit ${{ steps.latest_tag.outputs.tag }}
-          git commit -m "Merge latest tag from upstream"
+          
+          
+      - name: Create new branch
+        id: main_branch_name
+        run: echo "::set-output name= main_branch::PR-Tag-${{ steps.latest_tag.outputs.tag }}
+
+
+
           
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v3
         with:
           token: ${{ secrets.PAT }}
           commit-message: "Merge latest tag from upstream"
-          branch: PR-Tag-${{ steps.latest_tag.outputs.tag }}
+          branch: ${{ steps.main_branch_name.outputs.main_branch }}
           title: "Merge Latest Tag - ${{ steps.latest_tag.outputs.tag }} from Upstream"
           body: |
             This pull request merges the latest tag from the upstream repository.
