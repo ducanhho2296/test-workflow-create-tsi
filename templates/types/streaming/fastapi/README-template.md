@@ -1,9 +1,3 @@
-<!--
-SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-
-SPDX-License-Identifier: MIT
--->
-
 This is a [LlamaIndex](https://www.llamaindex.ai/) project using [FastAPI](https://fastapi.tiangolo.com/) bootstrapped with [`create-llama`](https://github.com/run-llama/LlamaIndexTS/tree/main/packages/create-llama).
 
 ## Getting Started
@@ -17,20 +11,14 @@ poetry install
 poetry shell
 ```
 
-By default, we use the T-Systems LLM (though you can customize, see `app/settings.py`). As a result you need to specify an `TSI_API_KEY` in an .env file in this directory.
-
-Example `.env` file:
-
-```
-TSI_API_KEY=<TSI_API_KEY>
-```
+Then check the parameters that have been pre-configured in the `.env` file in this directory. (E.g. you might need to configure an `OPENAI_API_KEY` if you're using OpenAI as model provider).
 
 If you are using any tools or data sources, you can update their config files in the `config` folder.
 
 Second, generate the embeddings of the documents in the `./data` directory (if this folder exists - otherwise, skip this step):
 
 ```
-python app/engine/generate.py
+poetry run generate
 ```
 
 Third, run the development server:
@@ -90,7 +78,7 @@ docker run \
   -v $(pwd)/data:/app/data \ # Use your local folder to read the data
   -v $(pwd)/storage:/app/storage \ # Use your file system to store the vector database
   <your_backend_image_name> \
-  python app/engine/generate.py
+  poetry run generate
 ```
 
 3. Start the API:

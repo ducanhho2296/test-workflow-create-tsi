@@ -1,10 +1,6 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 import { streamToResponse } from "ai";
 import { Request, Response } from "express";
-import { ChatMessage, MessageContent, OpenAI } from "llamaindex";
+import { ChatMessage, MessageContent } from "llamaindex";
 import { createChatEngine } from "./engine/chat";
 import { LlamaIndexStream } from "./llamaindex-stream";
 
@@ -38,11 +34,7 @@ export const chat = async (req: Request, res: Response) => {
       });
     }
 
-    const llm = new OpenAI({
-      model: (process.env.MODEL as any) || "gpt-3.5-turbo",
-    });
-
-    const chatEngine = await createChatEngine(llm);
+    const chatEngine = await createChatEngine();
 
     // Convert message content from Vercel/AI format to LlamaIndex/OpenAI format
     const userMessageContent = convertMessageContent(
@@ -79,7 +71,7 @@ export const chat = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("[LlamaIndex]", error);
     return res.status(500).json({
-      error: (error as Error).message,
+      detail: (error as Error).message,
     });
   }
 };
