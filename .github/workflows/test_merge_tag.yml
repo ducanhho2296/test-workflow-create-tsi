@@ -1,4 +1,4 @@
-name: Merge Latest Tag from Upstream
+name: test_merge_tags
 
 on:
   schedule:
