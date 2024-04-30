@@ -1,4 +1,4 @@
-name: test
+name: Merge latest Tag from Upstream
 on:
   schedule:
     - cron: '0 0 */2 * *'  # Run every 2 days
