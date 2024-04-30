@@ -1,5 +1,4 @@
 name: test
-
 on:
   schedule:
     - cron: '0 0 */2 * *'  # Run every 2 days
@@ -33,26 +32,19 @@ jobs:
       - name: Checkout the latest tag
         run: git checkout ${{ steps.latest_tag.outputs.tag }}
 
-      - name: Generate branch name
-        id: branch_name
-        run: echo "::set-output name=branch::PR-Tag-${{ steps.latest_tag.outputs.tag }}"
+      - name: Create new branch
+        run: git checkout -b PR-Tag-${{ steps.latest_tag.outputs.tag }}
 
-      - name: Checkout main branch
-        run: git checkout main
-
-      - name: Create a new branch with the latest tag from upstream
-        run: git checkout -b ${{ steps.branch_name.outputs.branch }}
-
-      - name: Push the new branch to the repository
-        run: git push origin ${{ steps.branch_name.outputs.branch }}
+      - name: Merge latest tag with new branch
+        run: git merge --no-commit --no-ff origin/main && git merge ${{ steps.latest_tag.outputs.tag }} --no-commit --no-ff && git commit -m "Merge latest tag from upstream"
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v3
         with:
           token: ${{ secrets.PAT }}
           commit-message: "Merge latest tag from upstream"
-          branch: ${{ steps.branch_name.outputs.branch }}
+          branch: PR-Tag-${{ steps.latest_tag.outputs.tag }}
           title: "Merge Latest Tag - ${{ steps.latest_tag.outputs.tag }} from Upstream"
           body: |
-            This pull request merges the latest tag from the upstream repository into the main branch.
+            This pull request merges the latest tag from the upstream repository.
             Please review and merge manually.
