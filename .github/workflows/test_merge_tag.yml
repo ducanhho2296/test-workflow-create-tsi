@@ -37,10 +37,7 @@ jobs:
           
       - name: Create new branch
         id: main_branch_name
-        run: echo "::set-output name= main_branch::PR-Tag-${{ steps.latest_tag.outputs.tag }}"
-
-
-
+        run: echo "::set-output name=main_branch::PR-Tag-${{ steps.latest_tag.outputs.tag }}"
           
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v3
