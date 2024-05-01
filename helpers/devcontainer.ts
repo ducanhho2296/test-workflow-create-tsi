@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 import fs from "fs";
 import path from "path";
 import { TemplateFramework } from "./types";
@@ -50,13 +46,16 @@ export const writeDevcontainer = async (
   framework: TemplateFramework,
   frontend: boolean,
 ) => {
-  console.log("Adding .devcontainer");
+  const devcontainerDir = path.join(root, ".devcontainer");
+  if (fs.existsSync(devcontainerDir)) {
+    console.log("Template already has a .devcontainer. Using it.");
+    return;
+  }
   const devcontainerContent = renderDevcontainerContent(
     templatesDir,
     framework,
     frontend,
   );
-  const devcontainerDir = path.join(root, ".devcontainer");
   fs.mkdirSync(devcontainerDir);
   await fs.promises.writeFile(
     path.join(devcontainerDir, "devcontainer.json"),

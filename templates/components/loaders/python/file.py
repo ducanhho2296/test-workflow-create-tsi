@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-#
-# SPDX-License-Identifier: MIT
-
 import os
 from llama_parse import LlamaParse
 from pydantic import BaseModel, validator
