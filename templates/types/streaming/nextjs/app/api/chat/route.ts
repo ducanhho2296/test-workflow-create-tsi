@@ -1,12 +1,13 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
-import { StreamingTextResponse } from "ai";
-import { ChatMessage, MessageContent, OpenAI } from "llamaindex";
+import { initObservability } from "@/app/observability";
+import { Message, StreamingTextResponse } from "ai";
+import { ChatMessage, MessageContent } from "llamaindex";
 import { NextRequest, NextResponse } from "next/server";
 import { createChatEngine } from "./engine/chat";
+import { initSettings } from "./engine/settings";
 import { LlamaIndexStream } from "./llamaindex-stream";
+
+initObservability();
+initSettings();
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +34,7 @@ const convertMessageContent = (
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { messages, data }: { messages: ChatMessage[]; data: any } = body;
+    const { messages, data }: { messages: Message[]; data: any } = body;
     const userMessage = messages.pop();
     if (!messages || !userMessage || userMessage.role !== "user") {
       return NextResponse.json(
@@ -45,12 +46,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const llm = new OpenAI({
-      model: (process.env.MODEL as any) ?? "gpt-3.5-turbo",
-      maxTokens: 512,
-    });
-
-    const chatEngine = await createChatEngine(llm);
+    const chatEngine = await createChatEngine();
 
     // Convert message content from Vercel/AI format to LlamaIndex/OpenAI format
     const userMessageContent = convertMessageContent(
@@ -61,7 +57,7 @@ export async function POST(request: NextRequest) {
     // Calling LlamaIndex's ChatEngine to get a streamed response
     const response = await chatEngine.chat({
       message: userMessageContent,
-      chatHistory: messages,
+      chatHistory: messages as ChatMessage[],
       stream: true,
     });
 
@@ -78,7 +74,7 @@ export async function POST(request: NextRequest) {
     console.error("[LlamaIndex]", error);
     return NextResponse.json(
       {
-        error: (error as Error).message,
+        detail: (error as Error).message,
       },
       {
         status: 500,
