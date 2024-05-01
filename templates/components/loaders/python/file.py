@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-#
-# SPDX-License-Identifier: MIT
-
 import os
 from llama_parse import LlamaParse
 from pydantic import BaseModel, validator
@@ -31,10 +27,7 @@ def llama_parse_parser():
 def get_file_documents(config: FileLoaderConfig):
     from llama_index.core.readers import SimpleDirectoryReader
 
-    reader = SimpleDirectoryReader(
-        config.data_dir,
-        recursive=True,
-    )
+    reader = SimpleDirectoryReader(config.data_dir, recursive=True, filename_as_id=True)
     if config.use_llama_parse:
         parser = llama_parse_parser()
         reader.file_extractor = {".pdf": parser}
