@@ -1,12 +1,6 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 import { execSync } from "child_process";
 import ciInfo from "ci-info";
 import fs from "fs";
-import got from "got";
-import ora from "ora";
 import path from "path";
 import { blue, green, red } from "picocolors";
 import prompts from "prompts";
@@ -16,17 +10,19 @@ import {
   TemplateDataSourceType,
   TemplateFramework,
 } from "./helpers";
+import { COMMUNITY_OWNER, COMMUNITY_REPO } from "./helpers/constant";
 import { EXAMPLE_FILE } from "./helpers/datasources";
 import { templatesDir } from "./helpers/dir";
+import { getAvailableLlamapackOptions } from "./helpers/llama-pack";
+import { askModelConfig } from "./helpers/providers";
+import { getProjectOptions } from "./helpers/repo";
 import { supportedTools, toolsRequireConfig } from "./helpers/tools";
-
-const OPENAI_API_URL = "https://llm-server.llmhub.t-systems.net/v2";
 
 export type QuestionArgs = Omit<
   InstallAppArgs,
   "appPath" | "packageManager"
 > & {
-  listServerModels?: boolean;
+  askModels?: boolean;
 };
 const supportedContextFileTypes = [
   ".pdf",
@@ -68,18 +64,13 @@ if ($dialogResult -eq [System.Windows.Forms.DialogResult]::OK)
 }
 `;
 
-const defaults: QuestionArgs = {
+const defaults: Omit<QuestionArgs, "modelConfig"> = {
   template: "streaming",
-  framework: "fastapi",
-  listServerModels: true,
-  observability: "none",
+  framework: "nextjs",
   ui: "shadcn",
   frontend: false,
-  openAiKey: "",
   llamaCloudKey: "",
   useLlamaParse: false,
-  model: "gpt-3.5-turbo",
-  embeddingModel: "text-embedding-ada-002",
   communityProjectConfig: undefined,
   llamapack: "",
   postInstallAction: "dependencies",
@@ -87,7 +78,7 @@ const defaults: QuestionArgs = {
   tools: [],
 };
 
-const handlers = {
+export const questionHandlers = {
   onCancel: () => {
     console.error("Exiting.");
     process.exit(1);
@@ -104,6 +95,8 @@ const getVectorDbChoices = (framework: TemplateFramework) => {
     { title: "PostgreSQL", value: "pg" },
     { title: "Pinecone", value: "pinecone" },
     { title: "Milvus", value: "milvus" },
+    { title: "Astra", value: "astra" },
+    { title: "Qdrant", value: "qdrant" },
   ];
 
   const vectordbLang = framework === "fastapi" ? "python" : "typescript";
@@ -134,7 +127,7 @@ export const getDataSourceChoices = (
   }
   if (selectedDataSource === undefined || selectedDataSource.length === 0) {
     choices.push({
-      title: "No data, just a simple chat",
+      title: "No data, just a simple chat or agent",
       value: "none",
     });
     choices.push({
@@ -162,13 +155,10 @@ export const getDataSourceChoices = (
       title: "Use website content (requires Chrome)",
       value: "web",
     });
-    // Add db source if there is no db source already
-    if (!selectedDataSource.some((ds) => ds.type === "db")) {
-      choices.push({
-        title: "Use data from a database (Mysql)",
-        value: "db",
-      });
-    }
+    choices.push({
+      title: "Use data from a database (Mysql, PostgreSQL)",
+      value: "db",
+    });
   }
   return choices;
 };
@@ -236,84 +226,15 @@ export const onPromptState = (state: any) => {
   }
 };
 
-const getAvailableModelChoices = async (
-  selectEmbedding: boolean,
-  apiKey?: string,
-  listServerModels?: boolean,
-) => {
-  const defaultLLMModels = [
-    "Llama2-70b-Instruct",
-    "Mixtral-8x7B-Instruct-v0.1",
-    "Zephyr-7b-beta",
-  ];
-  const defaultEmbeddingModels = [
-    "paraphrase-multilingual-mpnet-base-v2",
-    "jina-embeddings-v2-base-de",
-    "text-embedding-bge-m3",
-  ];
-
-  const isEmbeddingModel = (model_id: string) => {
-    return (
-      model_id.includes("embedding") ||
-      defaultEmbeddingModels.includes(model_id)
-    );
-  };
-
-  const isLLMModels = (model_id: string) => {
-    return !isEmbeddingModel(model_id);
-  };
-
-  if (apiKey && listServerModels) {
-    const spinner = ora("Fetching available models").start();
-    try {
-      const response = await got(`${OPENAI_API_URL}/models`, {
-        headers: {
-          Authorization: "Bearer " + apiKey,
-        },
-        timeout: 5000,
-        responseType: "json",
-      });
-      const data: any = await response.body;
-      spinner.stop();
-      return data.data
-        .filter((model: any) =>
-          selectEmbedding ? isEmbeddingModel(model.id) : isLLMModels(model.id),
-        )
-        .map((el: any) => {
-          return {
-            title: el.id,
-            value: el.id,
-          };
-        });
-    } catch (error) {
-      spinner.stop();
-      if ((error as any).response?.statusCode === 401) {
-        console.log(
-          red(
-            "Invalid T-Systems API key provided! Please provide a valid key and try again!",
-          ),
-        );
-      } else {
-        console.log(red("Request failed: " + error));
-      }
-      process.exit(1);
-    }
-  } else {
-    const data = selectEmbedding ? defaultEmbeddingModels : defaultLLMModels;
-    return data.map((model) => ({
-      title: model,
-      value: model,
-    }));
-  }
-};
-
 export const askQuestions = async (
   program: QuestionArgs,
   preferences: QuestionArgs,
+  openAiKey?: string,
 ) => {
-  const getPrefOrDefault = <K extends keyof QuestionArgs>(
+  const getPrefOrDefault = <K extends keyof Omit<QuestionArgs, "modelConfig">>(
     field: K,
-  ): QuestionArgs[K] => preferences[field] ?? defaults[field];
+  ): Omit<QuestionArgs, "modelConfig">[K] =>
+    preferences[field] ?? defaults[field];
 
   // Ask for next action after installation
   async function askPostInstallAction() {
@@ -336,8 +257,8 @@ export const askQuestions = async (
           },
         ];
 
-        const openAiKeyConfigured =
-          program.openAiKey || process.env["TSI_API_KEY"];
+        const modelConfigured =
+          !program.llamapack && program.modelConfig.isConfigured();
         // If using LlamaParse, require LlamaCloud API key
         const llamaCloudKeyConfigured = program.useLlamaParse
           ? program.llamaCloudKey || process.env["LLAMA_CLOUD_API_KEY"]
@@ -346,10 +267,9 @@ export const askQuestions = async (
         // Can run the app if all tools do not require configuration
         if (
           !hasVectorDb &&
-          openAiKeyConfigured &&
+          modelConfigured &&
           llamaCloudKeyConfigured &&
-          !toolsRequireConfig(program.tools) &&
-          !program.llamapack
+          !toolsRequireConfig(program.tools)
         ) {
           actionChoices.push({
             title:
@@ -366,7 +286,7 @@ export const askQuestions = async (
             choices: actionChoices,
             initial: 1,
           },
-          handlers,
+          questionHandlers,
         );
 
         program.postInstallAction = action;
@@ -374,13 +294,110 @@ export const askQuestions = async (
     }
   }
 
-  program.template = getPrefOrDefault("template");
-  program.framework = getPrefOrDefault("framework");
-  program.listServerModels = getPrefOrDefault("listServerModels");
+  if (!program.template) {
+    if (ciInfo.isCI) {
+      program.template = getPrefOrDefault("template");
+    } else {
+      const styledRepo = blue(
+        `https://github.com/${COMMUNITY_OWNER}/${COMMUNITY_REPO}`,
+      );
+      const { template } = await prompts(
+        {
+          type: "select",
+          name: "template",
+          message: "Which template would you like to use?",
+          choices: [
+            { title: "Chat", value: "streaming" },
+            {
+              title: `Community template from ${styledRepo}`,
+              value: "community",
+            },
+            {
+              title: "Example using a LlamaPack",
+              value: "llamapack",
+            },
+          ],
+          initial: 0,
+        },
+        questionHandlers,
+      );
+      program.template = template;
+      preferences.template = template;
+    }
+  }
+
+  if (program.template === "community") {
+    const projectOptions = await getProjectOptions(
+      COMMUNITY_OWNER,
+      COMMUNITY_REPO,
+    );
+    const { communityProjectConfig } = await prompts(
+      {
+        type: "select",
+        name: "communityProjectConfig",
+        message: "Select community template",
+        choices: projectOptions.map(({ title, value }) => ({
+          title,
+          value: JSON.stringify(value), // serialize value to string in terminal
+        })),
+        initial: 0,
+      },
+      questionHandlers,
+    );
+    const projectConfig = JSON.parse(communityProjectConfig);
+    program.communityProjectConfig = projectConfig;
+    preferences.communityProjectConfig = projectConfig;
+    return; // early return - no further questions needed for community projects
+  }
+
+  if (program.template === "llamapack") {
+    const availableLlamaPacks = await getAvailableLlamapackOptions();
+    const { llamapack } = await prompts(
+      {
+        type: "select",
+        name: "llamapack",
+        message: "Select LlamaPack",
+        choices: availableLlamaPacks.map((pack) => ({
+          title: pack.name,
+          value: pack.folderPath,
+        })),
+        initial: 0,
+      },
+      questionHandlers,
+    );
+    program.llamapack = llamapack;
+    preferences.llamapack = llamapack;
+    await askPostInstallAction();
+    return; // early return - no further questions needed for llamapack projects
+  }
+
+  if (!program.framework) {
+    if (ciInfo.isCI) {
+      program.framework = getPrefOrDefault("framework");
+    } else {
+      const choices = [
+        { title: "NextJS", value: "nextjs" },
+        { title: "Express", value: "express" },
+        { title: "FastAPI (Python)", value: "fastapi" },
+      ];
+
+      const { framework } = await prompts(
+        {
+          type: "select",
+          name: "framework",
+          message: "Which framework would you like to use?",
+          choices,
+          initial: 0,
+        },
+        questionHandlers,
+      );
+      program.framework = framework;
+      preferences.framework = framework;
+    }
+  }
 
   if (program.framework === "express" || program.framework === "fastapi") {
     // if a backend-only framework is selected, ask whether we should create a frontend
-    // (only for streaming backends)
     if (program.frontend === undefined) {
       if (ciInfo.isCI) {
         program.frontend = getPrefOrDefault("frontend");
@@ -410,78 +427,42 @@ export const askQuestions = async (
     program.frontend = false;
   }
 
-  program.ui = getPrefOrDefault("ui");
-  program.observability = getPrefOrDefault("observability");
-
-  if (!program.openAiKey) {
-    const { key } = await prompts(
-      {
-        type: "text",
-        name: "key",
-        message: program.listServerModels
-          ? "Please provide your T-Systems API key (or reuse TSI_API_KEY env variable):"
-          : "Please provide your T-Systems API key (leave blank to skip):",
-        validate: (value: string) => {
-          if (program.listServerModels && !value) {
-            if (process.env.TSI_API_KEY) {
-              return true;
-            }
-            return "T-Systems API key is required";
-          }
-          return true;
-        },
-      },
-      handlers,
-    );
-
-    program.openAiKey = key || process.env.TSI_API_KEY;
-    preferences.openAiKey = key || process.env.TSI_API_KEY;
-  }
-
-  if (!program.model) {
-    if (ciInfo.isCI) {
-      program.model = getPrefOrDefault("model");
-    } else {
-      const { model } = await prompts(
-        {
-          type: "select",
-          name: "model",
-          message: "Which model would you like to use?",
-          choices: await getAvailableModelChoices(
-            false,
-            program.openAiKey,
-            program.listServerModels,
-          ),
-          initial: 0,
-        },
-        handlers,
-      );
-      program.model = model;
-      preferences.model = model;
+  if (program.framework === "nextjs" || program.frontend) {
+    if (!program.ui) {
+      program.ui = defaults.ui;
     }
   }
 
-  if (!program.embeddingModel && program.framework === "fastapi") {
+  if (!program.observability) {
     if (ciInfo.isCI) {
-      program.embeddingModel = getPrefOrDefault("embeddingModel");
+      program.observability = getPrefOrDefault("observability");
     } else {
-      const { embeddingModel } = await prompts(
+      const { observability } = await prompts(
         {
           type: "select",
-          name: "embeddingModel",
-          message: "Which embedding model would you like to use?",
-          choices: await getAvailableModelChoices(
-            true,
-            program.openAiKey,
-            program.listServerModels,
-          ),
+          name: "observability",
+          message: "Would you like to set up observability?",
+          choices: [
+            { title: "No", value: "none" },
+            { title: "OpenTelemetry", value: "opentelemetry" },
+          ],
           initial: 0,
         },
-        handlers,
+        questionHandlers,
       );
-      program.embeddingModel = embeddingModel;
-      preferences.embeddingModel = embeddingModel;
+
+      program.observability = observability;
+      preferences.observability = observability;
     }
+  }
+
+  if (!program.modelConfig) {
+    const modelConfig = await askModelConfig({
+      openAiKey,
+      askModels: program.askModels ?? false,
+    });
+    program.modelConfig = modelConfig;
+    preferences.modelConfig = modelConfig;
   }
 
   if (!program.dataSources) {
@@ -505,87 +486,100 @@ export const askQuestions = async (
             ),
             initial: firstQuestion ? 1 : 0,
           },
-          handlers,
+          questionHandlers,
         );
 
         if (selectedSource === "no" || selectedSource === "none") {
           // user doesn't want another data source or any data source
           break;
         }
-        if (selectedSource === "exampleFile") {
-          program.dataSources.push(EXAMPLE_FILE);
-        } else if (selectedSource === "file" || selectedSource === "folder") {
-          // Select local data source
-          const selectedPaths = await selectLocalContextData(selectedSource);
-          for (const p of selectedPaths) {
+        switch (selectedSource) {
+          case "exampleFile": {
+            program.dataSources.push(EXAMPLE_FILE);
+            break;
+          }
+          case "file":
+          case "folder": {
+            const selectedPaths = await selectLocalContextData(selectedSource);
+            for (const p of selectedPaths) {
+              program.dataSources.push({
+                type: "file",
+                config: {
+                  path: p,
+                },
+              });
+            }
+            break;
+          }
+          case "web": {
+            const { baseUrl } = await prompts(
+              {
+                type: "text",
+                name: "baseUrl",
+                message: "Please provide base URL of the website: ",
+                initial: "https://www.llamaindex.ai",
+                validate: (value: string) => {
+                  if (!value.includes("://")) {
+                    value = `https://${value}`;
+                  }
+                  const urlObj = new URL(value);
+                  if (
+                    urlObj.protocol !== "https:" &&
+                    urlObj.protocol !== "http:"
+                  ) {
+                    return `URL=${value} has invalid protocol, only allow http or https`;
+                  }
+                  return true;
+                },
+              },
+              questionHandlers,
+            );
+
             program.dataSources.push({
-              type: "file",
+              type: "web",
               config: {
-                path: p,
+                baseUrl,
+                prefix: baseUrl,
+                depth: 1,
               },
             });
+            break;
           }
-        } else if (selectedSource === "web") {
-          // Selected web data source
-          const { baseUrl } = await prompts(
-            {
-              type: "text",
-              name: "baseUrl",
-              message: "Please provide base URL of the website: ",
-              initial: "https://www.llamaindex.ai",
-              validate: (value: string) => {
-                if (!value.includes("://")) {
-                  value = `https://${value}`;
-                }
-                const urlObj = new URL(value);
-                if (
-                  urlObj.protocol !== "https:" &&
-                  urlObj.protocol !== "http:"
-                ) {
-                  return `URL=${value} has invalid protocol, only allow http or https`;
-                }
-                return true;
+          case "db": {
+            const dbPrompts: prompts.PromptObject<string>[] = [
+              {
+                type: "text",
+                name: "uri",
+                message:
+                  "Please enter the connection string (URI) for the database.",
+                initial: "mysql+pymysql://user:pass@localhost:3306/mydb",
+                validate: (value: string) => {
+                  if (!value) {
+                    return "Please provide a valid connection string";
+                  } else if (
+                    !(
+                      value.startsWith("mysql+pymysql://") ||
+                      value.startsWith("postgresql+psycopg://")
+                    )
+                  ) {
+                    return "The connection string must start with 'mysql+pymysql://' for MySQL or 'postgresql+psycopg://' for PostgreSQL";
+                  }
+                  return true;
+                },
               },
-            },
-            handlers,
-          );
-
-          program.dataSources.push({
-            type: "web",
-            config: {
-              baseUrl,
-              prefix: baseUrl,
-              depth: 1,
-            },
-          });
-        } else if (selectedSource === "db") {
-          const dbPrompts: prompts.PromptObject<string>[] = [
-            {
-              type: "text",
-              name: "dbUri",
-              message:
-                "Please enter the connection string (URI) for the database:",
-              initial: "mysql+pymysql://user:pass@localhost:3306/mydb",
-              validate: (value: string) => {
-                if (!value) {
-                  return "Please provide a valid connection string";
-                } else if (!value.startsWith("mysql+pymysql://")) {
-                  return "The connection string must start with 'mysql+pymysql://'";
-                }
-                return true;
+              // Only ask for a query, user can provide more complex queries in the config file later
+              {
+                type: (prev) => (prev ? "text" : null),
+                name: "queries",
+                message: "Please enter the SQL query to fetch data:",
+                initial: "SELECT * FROM mytable",
               },
-            },
-            {
-              type: (prev) => (prev ? "text" : null),
-              name: "query",
-              message: "Please enter the SQL query to fetch data:",
-              initial: "SELECT * FROM mytable",
-            },
-          ];
-          program.dataSources.push({
-            type: "db",
-            config: await prompts(dbPrompts, handlers),
-          });
+            ];
+            program.dataSources.push({
+              type: "db",
+              config: await prompts(dbPrompts, questionHandlers),
+            });
+          }
         }
       }
     }
@@ -610,7 +604,7 @@ export const askQuestions = async (
           active: "yes",
           inactive: "no",
         },
-        handlers,
+        questionHandlers,
       );
       program.useLlamaParse = useLlamaParse;
 
@@ -623,7 +617,7 @@ export const askQuestions = async (
             message:
               "Please provide your LlamaIndex Cloud API key (leave blank to skip):",
           },
-          handlers,
+          questionHandlers,
         );
         program.llamaCloudKey = llamaCloudKey;
       }
@@ -642,15 +636,14 @@ export const askQuestions = async (
           choices: getVectorDbChoices(program.framework),
           initial: 0,
         },
-        handlers,
+        questionHandlers,
       );
       program.vectorDb = vectorDb;
       preferences.vectorDb = vectorDb;
     }
   }
 
-  // TODO: allow tools also without datasources
-  if (!program.tools && program.dataSources.length > 0) {
+  if (!program.tools) {
     if (ciInfo.isCI) {
       program.tools = getPrefOrDefault("tools");
     } else {
@@ -677,4 +670,8 @@ export const askQuestions = async (
   }
 
   await askPostInstallAction();
+};
+
+export const toChoice = (value: string) => {
+  return { title: value, value };
 };
