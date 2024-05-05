@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 /* eslint-disable import/no-extraneous-dependencies */
 import { async as glob } from "fast-glob";
 import fs from "fs";
@@ -51,4 +47,22 @@ export const copy = async (
       return fs.promises.copyFile(from, to);
     }),
   );
+};
+
+export const assetRelocator = (name: string) => {
+  switch (name) {
+    case "gitignore":
+    case "npmrc":
+    case "eslintrc.json": {
+      return `.${name}`;
+    }
+    // README.md is ignored by webpack-asset-relocator-loader used by ncc:
+    // https://github.com/vercel/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
+    case "README-template.md": {
+      return "README.md";
+    }
+    default: {
+      return name;
+    }
+  }
 };
