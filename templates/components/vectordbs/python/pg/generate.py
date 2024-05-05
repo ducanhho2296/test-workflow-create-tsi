@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-#
-# SPDX-License-Identifier: MIT
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,6 +15,7 @@ logger = logging.getLogger()
 
 
 def generate_datasource():
+    init_settings()
     logger.info("Creating new index")
     # load the documents and create the index
     documents = get_documents()
@@ -35,5 +32,4 @@ def generate_datasource():
 
 
 if __name__ == "__main__":
-    init_settings()
     generate_datasource()
