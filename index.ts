@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 /* eslint-disable import/no-extraneous-dependencies */
 import { execSync } from "child_process";
 import Commander from "commander";
@@ -82,7 +78,7 @@ const program = new Commander.Command(packageJson.name)
     "--files <path>",
     `
   
-    Specify the path to a local file or folder for chatting.
+  Specify the path to a local file or folder for chatting.
 `,
   )
   .option(
@@ -111,19 +107,6 @@ const program = new Commander.Command(packageJson.name)
     `
 
   Whether to generate a frontend for your backend.
-`,
-  )
-  .option(
-    "--model <model>",
-    `
-
-  Select OpenAI model to use. E.g. gpt-3.5-turbo.
-`,
-  )
-  .option(
-    "--embedding-model <embeddingModel>",
-    `
-  Select OpenAI embedding model to use. E.g. text-embedding-ada-002.
 `,
   )
   .option(
@@ -164,22 +147,30 @@ const program = new Commander.Command(packageJson.name)
   .option(
     "--use-llama-parse",
     `
-    Enable LlamaParse.
+
+  Enable LlamaParse.
 `,
   )
   .option(
     "--llama-cloud-key <key>",
     `
+  
   Provide a LlamaCloud API key.
 `,
   )
   .option(
-    "--list-server-models",
-    "Fetch available LLM and embedding models from OpenAI API.",
+    "--observability <observability>",
+    `
+    
+  Specify observability tools to use. Eg: none, opentelemetry
+`,
   )
   .option(
-    "--observability <observability>",
-    "Specify observability tools to use. Eg: none, opentelemetry",
+    "--ask-models",
+    `
+
+  Select LLM and embedding models.
+`,
   )
   .allowUnknownOption()
   .parse(process.argv);
@@ -196,6 +187,7 @@ if (process.argv.includes("--tools")) {
 if (process.argv.includes("--no-llama-parse")) {
   program.useLlamaParse = false;
 }
+program.askModels = process.argv.includes("--ask-models");
 if (process.argv.includes("--no-files")) {
   program.dataSources = [];
 } else {
@@ -211,7 +203,7 @@ const packageManager = !!program.useNpm
       : getPkgManager();
 
 async function run(): Promise<void> {
-  const conf = new Conf({ projectName: "create-tsi" });
+  const conf = new Conf({ projectName: "create-llama" });
 
   if (program.resetPreferences) {
     conf.clear();
@@ -282,7 +274,11 @@ async function run(): Promise<void> {
   }
 
   const preferences = (conf.get("preferences") || {}) as QuestionArgs;
-  await askQuestions(program as unknown as QuestionArgs, preferences);
+  await askQuestions(
+    program as unknown as QuestionArgs,
+    preferences,
+    program.openAiKey,
+  );
 
   await createApp({
     template: program.template,
@@ -291,10 +287,8 @@ async function run(): Promise<void> {
     appPath: resolvedProjectPath,
     packageManager,
     frontend: program.frontend,
-    openAiKey: program.openAiKey,
+    modelConfig: program.modelConfig,
     llamaCloudKey: program.llamaCloudKey,
-    model: program.model,
-    embeddingModel: program.embeddingModel,
     communityProjectConfig: program.communityProjectConfig,
     llamapack: program.llamapack,
     vectorDb: program.vectorDb,
@@ -351,13 +345,13 @@ async function notifyUpdate(): Promise<void> {
     if (res?.latest) {
       const updateMessage =
         packageManager === "yarn"
-          ? "yarn global add create-tsi@latest"
+          ? "yarn global add create-llama@latest"
           : packageManager === "pnpm"
-            ? "pnpm add -g create-tsi@latest"
-            : "npm i -g create-tsi@latest";
+            ? "pnpm add -g create-llama@latest"
+            : "npm i -g create-llama@latest";
 
       console.log(
-        yellow(bold("A new version of `create-tsi` is available!")) +
+        yellow(bold("A new version of `create-llama` is available!")) +
           "\n" +
           "You can update by running: " +
           cyan(updateMessage) +
