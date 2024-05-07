@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 // eslint-disable-next-line import/no-extraneous-dependencies
 import validateProjectName from "validate-npm-package-name";
 

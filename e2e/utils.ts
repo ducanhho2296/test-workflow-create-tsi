@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 import { ChildProcess, exec } from "child_process";
 import crypto from "node:crypto";
 import { mkdir } from "node:fs/promises";
@@ -16,8 +12,7 @@ import {
 } from "../helpers";
 
 export type AppType = "--frontend" | "--no-frontend" | "";
-const MODEL = "Llama2-70b-Instruct";
-const EMBEDDING_MODEL = "paraphrase-multilingual-mpnet-base-v2";
+
 export type CreateLlamaResult = {
   projectName: string;
   appProcess: ChildProcess;
@@ -78,8 +73,8 @@ export async function runCreateLlama(
   externalPort: number,
   postInstallAction: TemplatePostInstallAction,
 ): Promise<CreateLlamaResult> {
-  if (!process.env.TSI_API_KEY) {
-    throw new Error("Setting TSI_API_KEY is mandatory to run tests");
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("Setting OPENAI_API_KEY is mandatory to run tests");
   }
   const name = [
     templateType,
@@ -89,7 +84,7 @@ export async function runCreateLlama(
     appType,
   ].join("-");
   const command = [
-    "create-tsi",
+    "create-llama",
     name,
     "--template",
     templateType,
@@ -100,12 +95,8 @@ export async function runCreateLlama(
     templateUI,
     "--vector-db",
     vectorDb,
-    "--model",
-    MODEL,
-    "--embedding-model",
-    EMBEDDING_MODEL,
     "--open-ai-key",
-    process.env.TSI_API_KEY,
+    process.env.OPENAI_API_KEY,
     appType,
     "--use-pnpm",
     "--port",
@@ -117,6 +108,7 @@ export async function runCreateLlama(
     "--tools",
     "none",
     "--no-llama-parse",
+    "--observability",
     "none",
   ].join(" ");
   console.log(`running command '${command}' in ${cwd}`);
