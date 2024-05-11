@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-#
-# SPDX-License-Identifier: MIT
-
 import os
 from llama_index.vector_stores.postgres import PGVectorStore
 from urllib.parse import urlparse
@@ -28,5 +24,4 @@ def init_pg_vector_store_from_env():
         async_connection_string=async_conn_string,
         schema_name=PGVECTOR_SCHEMA,
         table_name=PGVECTOR_TABLE,
-        embed_dim=768,
     )
