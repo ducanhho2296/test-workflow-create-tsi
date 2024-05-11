@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 /* eslint-disable import/no-extraneous-dependencies */
 import path from "path";
 import { green, yellow } from "picocolors";
@@ -34,10 +30,8 @@ export async function createApp({
   appPath,
   packageManager,
   frontend,
-  openAiKey,
+  modelConfig,
   llamaCloudKey,
-  model,
-  embeddingModel,
   communityProjectConfig,
   llamapack,
   vectorDb,
@@ -81,10 +75,8 @@ export async function createApp({
     ui,
     packageManager,
     isOnline,
-    openAiKey,
+    modelConfig,
     llamaCloudKey,
-    model,
-    embeddingModel,
     communityProjectConfig,
     llamapack,
     vectorDb,
