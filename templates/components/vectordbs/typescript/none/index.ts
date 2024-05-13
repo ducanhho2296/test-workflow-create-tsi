@@ -1,22 +1,8 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
+import { SimpleDocumentStore, VectorStoreIndex } from "llamaindex";
+import { storageContextFromDefaults } from "llamaindex/storage/StorageContext";
+import { STORAGE_CACHE_DIR } from "./shared";
 
-import {
-  LLM,
-  serviceContextFromDefaults,
-  SimpleDocumentStore,
-  storageContextFromDefaults,
-  VectorStoreIndex,
-} from "llamaindex";
-import { CHUNK_OVERLAP, CHUNK_SIZE, STORAGE_CACHE_DIR } from "./constants.mjs";
-
-export async function getDataSource(llm: LLM) {
-  const serviceContext = serviceContextFromDefaults({
-    llm,
-    chunkSize: CHUNK_SIZE,
-    chunkOverlap: CHUNK_OVERLAP,
-  });
+export async function getDataSource() {
   const storageContext = await storageContextFromDefaults({
     persistDir: `${STORAGE_CACHE_DIR}`,
   });
@@ -25,12 +11,9 @@ export async function getDataSource(llm: LLM) {
     (storageContext.docStore as SimpleDocumentStore).toDict(),
   ).length;
   if (numberOfDocs === 0) {
-    throw new Error(
-      `StorageContext is empty - call 'npm run generate' to generate the storage first`,
-    );
+    return null;
   }
   return await VectorStoreIndex.init({
     storageContext,
-    serviceContext,
   });
 }

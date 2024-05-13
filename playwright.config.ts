@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 /* eslint-disable turbo/no-undeclared-env-vars */
 import { defineConfig, devices } from "@playwright/test";
 
