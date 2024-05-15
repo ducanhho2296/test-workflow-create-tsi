@@ -1,32 +1,63 @@
-<!--
+# create-llama
 
-SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-
-SPDX-License-Identifier: MIT
--->
-
-# create-tsi
-
-## 0.0.18
+## 0.1.4
 
 ### Patch Changes
 
-- ddbc80f: Fix missing brave and duckduckgo search tools
+- 0bc8e75: Use ingestion pipeline for dedicated vector stores (Python only)
+- cb1001d: Add ChromaDB vector store
 
-## 0.0.17
-
-### Patch Changes
-
-- 06fdd7f: Add support for LLM Hub v2
-
-## 0.0.16
+## 0.1.3
 
 ### Patch Changes
 
-- ce2f24d: Update loaders and tools config to yaml format
+- 416073d: Directly import vector stores to work with NextJS
+
+## 0.1.2
+
+### Patch Changes
+
+- 056e376: Add support for displaying tool outputs (including weather widget as example)
+
+## 0.1.1
+
+### Patch Changes
+
+- 7bd3ed5: Support Anthropic and Gemini as model providers
+- 7bd3ed5: Support new agents from LITS 0.3
+- cfb5257: Display events (e.g. retrieving nodes) per chat message
+
+## 0.1.0
+
+### Minor Changes
+
+- f1c3e8d: Add Llama3 and Phi3 support using Ollama
+
+### Patch Changes
+
+- a0dec80: Use `gpt-4-turbo` model as default. Upgrade Python llama-index to 0.10.28
+- 753229d: Remove asking for AI models and use defaults instead (OpenAIs GPT-4 Vision Preview and Embeddings v3). Use `--ask-models` CLI parameter to select models.
+- 1d78202: Add observability for Python
+- 6acccd2: Use poetry run generate to generate embeddings for FastAPI
+- 9efcffe: Use Settings object for LlamaIndex configuration
+- 418bf9b: refactor: use tsx instead of ts-node
+- 1be69a5: Add Qdrant support
+
+## 0.0.32
+
+### Patch Changes
+
+- 625ed4d: Support Astra VectorDB
+- 922e0ce: Remove UI question (use shadcn as default). Use `html` UI by calling create-llama with --ui html parameter
+- ce2f24d: Update loaders and tools config to yaml format (for Python)
 - e8db041: Let user select multiple datasources (URLs, files and folders)
-- 78ded9e: Add Dockerfile template
+- c06d4af: Add nodes to the response (Python)
+- 29b17ee: Allow using agents without any data source
+- 665c26c: Add redirect to documentation page when accessing the base URL (FastAPI)
+- 78ded9e: Add Dockerfile templates for Typescript and Python
 - 99e758f: Merge non-streaming and streaming template to one
+- b3f2685: Add support for agent generation for Typescript
+- 2739714: Use a database (MySQL or PostgreSQL) as a data source
 
 ## 0.0.31
 
