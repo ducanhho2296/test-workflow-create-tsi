@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 import Image from "next/image";
 
 export default function Header() {
@@ -16,12 +12,13 @@ export default function Header() {
           href="https://www.llamaindex.ai/"
           className="flex items-center justify-center font-nunito text-lg font-bold gap-2"
         >
-          <span>Built by</span>
+          <span>Built by LlamaIndex</span>
           <Image
-            src="/logo.png"
-            alt="T-Systems Logo"
-            width={52}
-            height={62}
+            className="rounded-xl"
+            src="/llama.png"
+            alt="Llama Logo"
+            width={40}
+            height={40}
             priority
           />
         </a>

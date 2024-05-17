@@ -1,10 +1,7 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 import fs from "fs/promises";
 import path from "path";
 import {
+  ModelConfig,
   TemplateDataSource,
   TemplateFramework,
   TemplateVectorDB,
@@ -32,14 +29,20 @@ const renderEnvVar = (envVars: EnvVar[]): string => {
   );
 };
 
-const getVectorDBEnvs = (vectorDb: TemplateVectorDB) => {
+const getVectorDBEnvs = (
+  vectorDb?: TemplateVectorDB,
+  framework?: TemplateFramework,
+): EnvVar[] => {
+  if (!vectorDb || !framework) {
+    return [];
+  }
   switch (vectorDb) {
     case "mongo":
       return [
         {
-          name: "MONGO_URI",
+          name: "MONGODB_URI",
           description:
-            "For generating a connection URI, see https://docs.timescale.com/use-timescale/latest/services/create-a-service\nThe MongoDB connection URI.",
+            "For generating a connection URI, see https://www.mongodb.com/docs/manual/reference/connection-string/ \nThe MongoDB connection URI.",
         },
         {
           name: "MONGODB_DATABASE",
@@ -97,19 +100,173 @@ const getVectorDBEnvs = (vectorDb: TemplateVectorDB) => {
           description: "The password to access the Milvus server.",
         },
       ];
+    case "astra":
+      return [
+        {
+          name: "ASTRA_DB_APPLICATION_TOKEN",
+          description: "The generated app token for your Astra database",
+        },
+        {
+          name: "ASTRA_DB_ENDPOINT",
+          description: "The API endpoint for your Astra database",
+        },
+        {
+          name: "ASTRA_DB_COLLECTION",
+          description: "The name of the collection in your Astra database",
+        },
+      ];
+    case "qdrant":
+      return [
+        {
+          name: "QDRANT_URL",
+          description:
+            "The qualified REST URL of the Qdrant server. Eg: http://localhost:6333",
+        },
+        {
+          name: "QDRANT_COLLECTION",
+          description: "The name of Qdrant collection to use.",
+        },
+        {
+          name: "QDRANT_API_KEY",
+          description:
+            "Optional API key for authenticating requests to Qdrant.",
+        },
+      ];
+    case "chroma":
+      const envs = [
+        {
+          name: "CHROMA_COLLECTION",
+          description: "The name of the collection in your Chroma database",
+        },
+        {
+          name: "CHROMA_HOST",
+          description: "The API endpoint for your Chroma database",
+        },
+        {
+          name: "CHROMA_PORT",
+          description: "The port for your Chroma database",
+        },
+      ];
+      // TS Version doesn't support config local storage path
+      if (framework === "fastapi") {
+        envs.push({
+          name: "CHROMA_PATH",
+          description: `The local path to the Chroma database. 
+Specify this if you are using a local Chroma database. 
+Otherwise, use CHROMA_HOST and CHROMA_PORT config above`,
+        });
+      }
+      return envs;
     default:
       return [];
   }
 };
 
+const getModelEnvs = (modelConfig: ModelConfig): EnvVar[] => {
+  return [
+    {
+      name: "MODEL_PROVIDER",
+      description: "The provider for the AI models to use.",
+      value: modelConfig.provider,
+    },
+    {
+      name: "MODEL",
+      description: "The name of LLM model to use.",
+      value: modelConfig.model,
+    },
+    {
+      name: "EMBEDDING_MODEL",
+      description: "Name of the embedding model to use.",
+      value: modelConfig.embeddingModel,
+    },
+    {
+      name: "EMBEDDING_DIM",
+      description: "Dimension of the embedding model to use.",
+      value: modelConfig.dimensions.toString(),
+    },
+    ...(modelConfig.provider === "openai"
+      ? [
+          {
+            name: "OPENAI_API_KEY",
+            description: "The OpenAI API key to use.",
+            value: modelConfig.apiKey,
+          },
+          {
+            name: "LLM_TEMPERATURE",
+            description: "Temperature for sampling from the model.",
+          },
+          {
+            name: "LLM_MAX_TOKENS",
+            description: "Maximum number of tokens to generate.",
+          },
+        ]
+      : []),
+    ...(modelConfig.provider === "anthropic"
+      ? [
+          {
+            name: "ANTHROPIC_API_KEY",
+            description: "The Anthropic API key to use.",
+            value: modelConfig.apiKey,
+          },
+        ]
+      : []),
+    ...(modelConfig.provider === "gemini"
+      ? [
+          {
+            name: "GOOGLE_API_KEY",
+            description: "The Google API key to use.",
+            value: modelConfig.apiKey,
+          },
+        ]
+      : []),
+  ];
+};
+
+const getFrameworkEnvs = (
+  framework?: TemplateFramework,
+  port?: number,
+): EnvVar[] => {
+  if (framework !== "fastapi") {
+    return [];
+  }
+  return [
+    {
+      name: "APP_HOST",
+      description: "The address to start the backend app.",
+      value: "0.0.0.0",
+    },
+    {
+      name: "APP_PORT",
+      description: "The port to start the backend app.",
+      value: port?.toString() || "8000",
+    },
+    // TODO: Once LlamaIndexTS supports string templates, move this to `getEngineEnvs`
+    {
+      name: "SYSTEM_PROMPT",
+      description: `Custom system prompt.
+Example:
+SYSTEM_PROMPT="You are a helpful assistant who helps users with their questions."`,
+    },
+  ];
+};
+
+const getEngineEnvs = (): EnvVar[] => {
+  return [
+    {
+      name: "TOP_K",
+      description:
+        "The number of similar embeddings to return when retrieving documents.",
+      value: "3",
+    },
+  ];
+};
+
 export const createBackendEnvFile = async (
   root: string,
   opts: {
-    openAiKey?: string;
     llamaCloudKey?: string;
     vectorDb?: TemplateVectorDB;
-    model?: string;
-    embeddingModel?: string;
+    modelConfig: ModelConfig;
     framework?: TemplateFramework;
     dataSources?: TemplateDataSource[];
     port?: number;
@@ -117,107 +274,20 @@ export const createBackendEnvFile = async (
 ) => {
   // Init env values
   const envFileName = ".env";
-  const defaultEnvs = [
-    {
-      render: true,
-      name: "MODEL",
-      description: "The name of LLM model to use.",
-      value: opts.model || "gpt-3.5-turbo",
-    },
-    {
-      render: true,
-      name: "TSI_API_KEY",
-      description: "The T-Systems API key to use.",
-      value: opts.openAiKey,
-    },
-    {
-      name: "TSI_API_BASE_URL",
-      description: "The T-Systems API base URL.",
-      value: "https://llm-server.llmhub.t-systems.net/v2",
-    },
-    {
-      name: "TSI_EMBED_API_BASE_URL",
-      description: "The T-Systems embedding API base URL.",
-      value: "https://llm-server.llmhub.t-systems.net/v2",
-    },
+  const envVars: EnvVar[] = [
     {
       name: "LLAMA_CLOUD_API_KEY",
       description: `The Llama Cloud API key.`,
       value: opts.llamaCloudKey,
     },
+    // Add model environment variables
+    ...getModelEnvs(opts.modelConfig),
+    // Add engine environment variables
+    ...getEngineEnvs(),
     // Add vector database environment variables
-    ...(opts.vectorDb ? getVectorDBEnvs(opts.vectorDb) : []),
+    ...getVectorDBEnvs(opts.vectorDb, opts.framework),
+    ...getFrameworkEnvs(opts.framework, opts.port),
   ];
-  let envVars: EnvVar[] = [];
-  if (opts.framework === "fastapi") {
-    // TODO: select right dimension depending on the model
-    const defaultDimension = opts.model === "large-model" ? "1536" : "768";
-    envVars = [
-      ...defaultEnvs,
-      ...[
-        {
-          name: "APP_HOST",
-          description: "The address to start the backend app.",
-          value: "0.0.0.0",
-        },
-        {
-          name: "APP_PORT",
-          description: "The port to start the backend app.",
-          value: opts.port?.toString() || "8000",
-        },
-        {
-          name: "EMBEDDING_MODEL",
-          description: "Name of the embedding model to use.",
-          value: opts.embeddingModel,
-        },
-        {
-          name: "EMBEDDING_DIM",
-          description: "Dimension of the embedding model to use.",
-          value: defaultDimension,
-        },
-        {
-          name: "LLM_TEMPERATURE",
-          description: "Temperature for sampling from the model.",
-        },
-        {
-          name: "LLM_MAX_TOKENS",
-          description: "Maximum number of tokens to generate.",
-        },
-        {
-          name: "TOP_K",
-          description:
-            "The number of similar embeddings to return when retrieving documents.",
-          value: "3",
-        },
-        {
-          name: "SYSTEM_PROMPT",
-          description: `Custom system prompt.
-Example:
-SYSTEM_PROMPT="
-We have provided context information below.
----------------------
-{context_str}
----------------------
-Given this information, please answer the question: {query_str}
-"`,
-        },
-      ],
-    ];
-  } else {
-    envVars = [
-      ...defaultEnvs,
-      ...[
-        opts.framework === "nextjs"
-          ? {
-              name: "NEXT_PUBLIC_MODEL",
-              description:
-                "The LLM model to use (hardcode to front-end artifact).",
-              value: opts.model || "gpt-3.5-turbo",
-            }
-          : {},
-      ],
-    ];
-  }
   // Render and write env file
   const content = renderEnvVar(envVars);
   await fs.writeFile(path.join(root, envFileName), content);
@@ -228,20 +298,9 @@ export const createFrontendEnvFile = async (
   root: string,
   opts: {
     customApiPath?: string;
-    model?: string;
   },
 ) => {
   const defaultFrontendEnvs = [
-    {
-      name: "MODEL",
-      description: "The OpenAI model to use.",
-      value: opts.model,
-    },
-    {
-      name: "NEXT_PUBLIC_MODEL",
-      description: "The OpenAI model to use (hardcode to front-end artifact).",
-      value: opts.model,
-    },
     {
       name: "NEXT_PUBLIC_CHAT_API",
       description: "The backend API for chat endpoint.",
