@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 /* eslint-disable turbo/no-undeclared-env-vars */
 import { expect, test } from "@playwright/test";
 import { ChildProcess } from "child_process";
@@ -71,7 +67,7 @@ for (const templateType of templateTypes) {
             test("Frontend should have a title", async ({ page }) => {
               test.skip(templatePostInstallAction !== "runApp");
               await page.goto(`http://localhost:${port}`);
-              await expect(page.getByText("Built by")).toBeVisible();
+              await expect(page.getByText("Built by LlamaIndex")).toBeVisible();
             });
 
             test("Frontend should be able to submit a message and receive a response", async ({
