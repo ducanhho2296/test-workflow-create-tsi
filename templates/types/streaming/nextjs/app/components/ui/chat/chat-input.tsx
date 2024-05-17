@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 import { useState } from "react";
 import { Button } from "../button";
 import FileUploader from "../file-uploader";
@@ -71,16 +67,14 @@ export default function ChatInput(
           autoFocus
           name="message"
           placeholder="Type a message"
-          className="flex-1 text-field"
+          className="flex-1"
           value={props.input}
           onChange={props.handleInputChange}
         />
-        {props.onFileUpload && (
-          <FileUploader
-            onFileUpload={handleUploadFile}
-            onFileError={props.onFileError}
-          />
-        )}
+        <FileUploader
+          onFileUpload={handleUploadFile}
+          onFileError={props.onFileError}
+        />
         <Button type="submit" disabled={props.isLoading}>
           Send message
         </Button>
