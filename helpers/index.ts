@@ -1,22 +1,21 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 import { callPackageManager } from "./install";
 
 import path from "path";
 import { cyan } from "picocolors";
 
 import fsExtra from "fs-extra";
+import { writeLoadersConfig } from "./datasources";
 import { createBackendEnvFile, createFrontendEnvFile } from "./env-variables";
 import { PackageManager } from "./get-pkg-manager";
 import { installLlamapackProject } from "./llama-pack";
 import { isHavingPoetryLockFile, tryPoetryRun } from "./poetry";
 import { installPythonTemplate } from "./python";
 import { downloadAndExtractRepo } from "./repo";
+import { ConfigFileType, writeToolsConfig } from "./tools";
 import {
   FileSourceConfig,
   InstallTemplateArgs,
+  ModelConfig,
   TemplateDataSource,
   TemplateFramework,
   TemplateVectorDB,
@@ -26,8 +25,8 @@ import { installTSTemplate } from "./typescript";
 // eslint-disable-next-line max-params
 async function generateContextData(
   framework: TemplateFramework,
+  modelConfig: ModelConfig,
   packageManager?: PackageManager,
-  openAiKey?: string,
   vectorDb?: TemplateVectorDB,
   llamaCloudKey?: string,
   useLlamaParse?: boolean,
@@ -35,20 +34,20 @@ async function generateContextData(
   if (packageManager) {
     const runGenerate = `${cyan(
       framework === "fastapi"
-        ? "poetry run python app/engine/generate.py"
+        ? "poetry run generate"
         : `${packageManager} run generate`,
     )}`;
-    const openAiKeyConfigured = openAiKey || process.env["TSI_API_KEY"];
+    const modelConfigured = modelConfig.isConfigured();
     const llamaCloudKeyConfigured = useLlamaParse
       ? llamaCloudKey || process.env["LLAMA_CLOUD_API_KEY"]
       : true;
     const hasVectorDb = vectorDb && vectorDb !== "none";
-    if (openAiKeyConfigured && llamaCloudKeyConfigured && !hasVectorDb) {
+    if (modelConfigured && llamaCloudKeyConfigured && !hasVectorDb) {
       // If all the required environment variables are set, run the generate script
       if (framework === "fastapi") {
         if (isHavingPoetryLockFile()) {
           console.log(`Running ${runGenerate} to generate the context data.`);
-          const result = tryPoetryRun("python app/engine/generate.py");
+          const result = tryPoetryRun("poetry run generate");
           if (!result) {
             console.log(`Failed to run ${runGenerate}.`);
             process.exit(1);
@@ -65,7 +64,7 @@ async function generateContextData(
 
     // generate the message of what to do to run the generate script manually
     const settings = [];
-    if (!openAiKeyConfigured) settings.push("your T-Systems key");
+    if (!modelConfigured) settings.push("your model provider API key");
     if (!llamaCloudKeyConfigured) settings.push("your Llama Cloud key");
     if (hasVectorDb) settings.push("your Vector DB environment variables");
     const settingsMessage =
@@ -121,20 +120,31 @@ export const installTemplate = async (
 
   if (props.framework === "fastapi") {
     await installPythonTemplate(props);
+    // write loaders configuration (currently Python only)
+    await writeLoadersConfig(
+      props.root,
+      props.dataSources,
+      props.useLlamaParse,
+    );
   } else {
     await installTSTemplate(props);
   }
+
+  // write tools configuration
+  await writeToolsConfig(
+    props.root,
+    props.tools,
+    props.framework === "fastapi" ? ConfigFileType.YAML : ConfigFileType.JSON,
+  );
 
   if (props.backend) {
     // This is a backend, so we need to copy the test data and create the env file.
 
     // Copy the environment file to the target directory.
     await createBackendEnvFile(props.root, {
-      openAiKey: props.openAiKey,
+      modelConfig: props.modelConfig,
       llamaCloudKey: props.llamaCloudKey,
       vectorDb: props.vectorDb,
-      model: props.model,
-      embeddingModel: props.embeddingModel,
       framework: props.framework,
       dataSources: props.dataSources,
       port: props.externalPort,
@@ -152,8 +162,8 @@ export const installTemplate = async (
       ) {
         await generateContextData(
           props.framework,
+          props.modelConfig,
           props.packageManager,
-          props.openAiKey,
           props.vectorDb,
           props.llamaCloudKey,
           props.useLlamaParse,
@@ -163,7 +173,6 @@ export const installTemplate = async (
   } else {
     // this is a frontend for a full-stack app, create .env file with model information
     await createFrontendEnvFile(props.root, {
-      model: props.model,
       customApiPath: props.customApiPath,
     });
   }

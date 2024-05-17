@@ -1,33 +1,10 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 /* eslint-disable turbo/no-undeclared-env-vars */
-import {
-  ContextChatEngine,
-  LLM,
-  PineconeVectorStore,
-  VectorStoreIndex,
-  serviceContextFromDefaults,
-} from "llamaindex";
-import { CHUNK_OVERLAP, CHUNK_SIZE, checkRequiredEnvVars } from "./shared.mjs";
+import { VectorStoreIndex } from "llamaindex";
+import { PineconeVectorStore } from "llamaindex/storage/vectorStore/PineconeVectorStore";
+import { checkRequiredEnvVars } from "./shared";
 
-async function getDataSource(llm: LLM) {
+export async function getDataSource() {
   checkRequiredEnvVars();
-  const serviceContext = serviceContextFromDefaults({
-    llm,
-    chunkSize: CHUNK_SIZE,
-    chunkOverlap: CHUNK_OVERLAP,
-  });
   const store = new PineconeVectorStore();
-  return await VectorStoreIndex.fromVectorStore(store, serviceContext);
-}
-
-export async function createChatEngine(llm: LLM) {
-  const index = await getDataSource(llm);
-  const retriever = index.asRetriever({ similarityTopK: 5 });
-  return new ContextChatEngine({
-    chatModel: llm,
-    retriever,
-  });
+  return await VectorStoreIndex.fromVectorStore(store);
 }
