@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 /* eslint-disable turbo/no-undeclared-env-vars */
 import cors from "cors";
 import "dotenv/config";
@@ -35,6 +31,7 @@ if (isDevelopment) {
   console.warn("Production CORS origin not set, defaulting to no CORS.");
 }
 
+app.use("/api/data", express.static("data"));
 app.use(express.text());
 
 app.get("/", (req: Request, res: Response) => {
