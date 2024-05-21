@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 import { execSync } from "child_process";
 import dns from "dns";
 import url from "url";
