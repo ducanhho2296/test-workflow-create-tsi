@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-#
-# SPDX-License-Identifier: MIT
-
 FROM python:3.11 as build
 
 WORKDIR /app
