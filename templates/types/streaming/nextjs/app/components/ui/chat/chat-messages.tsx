@@ -1,10 +1,6 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
+import { Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 
-import Loader from "../telekom/loader";
 import ChatActions from "./chat-actions";
 import ChatMessage from "./chat-message";
 import { ChatHandler } from "./chat.interface";
@@ -44,12 +40,19 @@ export default function ChatMessages(
         className="flex h-[50vh] flex-col gap-5 divide-y overflow-y-auto pb-4"
         ref={scrollableChatContainerRef}
       >
-        {props.messages.map((m) => (
-          <ChatMessage key={m.id} {...m} />
-        ))}
+        {props.messages.map((m, i) => {
+          const isLoadingMessage = i === messageLength - 1 && props.isLoading;
+          return (
+            <ChatMessage
+              key={m.id}
+              chatMessage={m}
+              isLoading={isLoadingMessage}
+            />
+          );
+        })}
         {isPending && (
           <div className="flex justify-center items-center pt-10">
-            <Loader />
+            <Loader2 className="h-4 w-4 animate-spin" />
           </div>
         )}
       </div>
