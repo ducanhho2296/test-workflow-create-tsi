@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
 import { createWriteStream, promises } from "fs";
 import got from "got";
 import { tmpdir } from "os";
