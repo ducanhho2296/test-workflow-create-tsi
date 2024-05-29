@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-#
-# SPDX-License-Identifier: MIT
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,16 +7,19 @@ import os
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from app.api.routers.chat import chat_router
 from app.settings import init_settings
+from app.observability import init_observability
+from fastapi.staticfiles import StaticFiles
 
 
 app = FastAPI()
 
 init_settings()
+init_observability()
 
 environment = os.getenv("ENVIRONMENT", "dev")  # Default to 'development' if not set
-
 
 if environment == "dev":
     logger = logging.getLogger("uvicorn")
@@ -32,6 +31,22 @@ if environment == "dev":
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Redirect to documentation page when accessing base URL
+    @app.get("/")
+    async def redirect_to_docs():
+        return RedirectResponse(url="/docs")
+
+
+def mount_static_files(directory, path):
+    if os.path.exists(directory):
+        app.mount(path, StaticFiles(directory=directory), name=f"{directory}-static")
+
+
+# Mount the data files to serve the file viewer
+mount_static_files("data", "/api/files/data")
+# Mount the output files from tools
+mount_static_files("tool-output", "/api/files/tool-output")
 
 app.include_router(chat_router, prefix="/api/chat")
 

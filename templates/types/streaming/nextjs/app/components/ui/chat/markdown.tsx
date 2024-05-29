@@ -1,9 +1,7 @@
-// SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
-//
-// SPDX-License-Identifier: MIT
-
+import "katex/dist/katex.min.css";
 import { FC, memo } from "react";
 import ReactMarkdown, { Options } from "react-markdown";
+import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 
@@ -16,11 +14,27 @@ const MemoizedReactMarkdown: FC<Options> = memo(
     prevProps.className === nextProps.className,
 );
 
+const preprocessLaTeX = (content: string) => {
+  // Replace block-level LaTeX delimiters \[ \] with $$ $$
+  const blockProcessedContent = content.replace(
+    /\\\[(.*?)\\\]/gs,
+    (_, equation) => `$$${equation}$$`,
+  );
+  // Replace inline LaTeX delimiters \( \) with $ $
+  const inlineProcessedContent = blockProcessedContent.replace(
+    /\\\((.*?)\\\)/gs,
+    (_, equation) => `$${equation}$`,
+  );
+  return inlineProcessedContent;
+};
+
 export default function Markdown({ content }: { content: string }) {
+  const processedContent = preprocessLaTeX(content);
   return (
     <MemoizedReactMarkdown
       className="prose dark:prose-invert prose-p:leading-relaxed prose-pre:p-0 break-words custom-markdown"
       remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeKatex as any]}
       components={{
         p({ children }) {
           return <p className="mb-2 last:mb-0">{children}</p>;
@@ -57,7 +71,7 @@ export default function Markdown({ content }: { content: string }) {
         },
       }}
     >
-      {content}
+      {processedContent}
     </MemoizedReactMarkdown>
   );
 }
